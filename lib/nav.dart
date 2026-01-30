@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'medical_record.dart';
 import 'pages.dart';
+import 'pages/history_data.dart';
+import 'pages/home.dart';
 
 class BottomNavigationPage extends StatefulWidget {
   const BottomNavigationPage({super.key});

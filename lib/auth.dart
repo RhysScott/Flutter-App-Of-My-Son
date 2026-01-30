@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'nav_page.dart';
+import 'nav.dart';
 
 // 登录页面
 class LoginPage extends StatefulWidget {

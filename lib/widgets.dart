@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'models.dart';
 
-// 健康指标卡片（修改：仅新增onTap回调，无改动其他内容，修正报错）
 class HealthIndicatorCard extends StatelessWidget {
   final int value;
   final String title;
@@ -10,7 +9,7 @@ class HealthIndicatorCard extends StatelessWidget {
   final String unit;
   final (String status, Color color) Function(int value) getStatus;
   final double? width;
-  final VoidCallback? onTap; // 新增：点击回调（仅补全，无改动其他）
+  final VoidCallback? onTap;
 
   const HealthIndicatorCard({
     super.key,
@@ -26,8 +25,8 @@ class HealthIndicatorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (status, color) = getStatus(value);
-    final shadowColor = color.withOpacity(0.3);
-    final textColor = color.withOpacity(0.85);
+    final shadowColor = color.withValues(alpha: 0.3);
+    final textColor = color.withValues(alpha: 0.85);
 
     return GestureDetector(
       onTap: onTap,
@@ -71,7 +70,7 @@ class HealthIndicatorCard extends StatelessWidget {
                 ),
                 ShaderMask(
                   shaderCallback: (bounds) => LinearGradient(
-                    colors: [color, color.withOpacity(0.8)],
+                    colors: [color, color.withValues(alpha: 0.8)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ).createShader(bounds),
@@ -99,7 +98,10 @@ class HealthIndicatorCard extends StatelessWidget {
                         color: color,
                         letterSpacing: 0.5,
                         shadows: [
-                          Shadow(color: color.withOpacity(0.1), blurRadius: 2),
+                          Shadow(
+                            color: color.withValues(alpha: 0.1),
+                            blurRadius: 2,
+                          ),
                         ],
                       ),
                       duration: const Duration(milliseconds: 300),
@@ -134,7 +136,6 @@ class HealthIndicatorCard extends StatelessWidget {
   }
 }
 
-// 统计卡片（原有，无改动，完整保留）
 class StatisticCard extends StatelessWidget {
   final String title;
   final String value;
@@ -171,7 +172,7 @@ class StatisticCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -193,7 +194,6 @@ class StatisticCard extends StatelessWidget {
   }
 }
 
-// 新增：功能5 紧急阈值提示卡片（完整，无改动）
 class EmergencyTipCard extends StatelessWidget {
   final String title;
   final String content;
@@ -211,9 +211,9 @@ class EmergencyTipCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,7 +229,7 @@ class EmergencyTipCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             content,
-            style: TextStyle(fontSize: 12, color: color.withOpacity(0.8)),
+            style: TextStyle(fontSize: 12, color: color.withValues(alpha: 0.8)),
           ),
         ],
       ),
@@ -237,7 +237,6 @@ class EmergencyTipCard extends StatelessWidget {
   }
 }
 
-// 新增：功能1 食谱推荐卡片（完整，无改动，补全截断）
 class RecipeCard extends StatelessWidget {
   final String title;
   final List<String> foods;
@@ -266,7 +265,7 @@ class RecipeCard extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Color(0xFF2D3748),
             ),
@@ -281,14 +280,14 @@ class RecipeCard extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.check_circle,
-                          size: 12,
+                          size: 14,
                           color: const Color(0xFF38A169),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           food,
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 14,
                             color: Color(0xFF4A5568),
                           ),
                         ),
@@ -304,7 +303,7 @@ class RecipeCard extends StatelessWidget {
   }
 }
 
-// 补全：MedicalRecordCard（原有，无改动，解决之前找不到的报错）
+// 基础病史卡片
 class MedicalRecordCard extends StatelessWidget {
   final MedicalRecordModel record;
   final VoidCallback onTap;
@@ -342,7 +341,7 @@ class MedicalRecordCard extends StatelessWidget {
                 Text(
                   record.patientName,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF2D3748),
                   ),
@@ -350,23 +349,22 @@ class MedicalRecordCard extends StatelessWidget {
                 Text(
                   record.recordTime,
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 12,
                     color: Color(0xFF718096),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Text(
               record.chiefComplaint,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 14,
                 color: Color(0xFF4A5568),
-
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
@@ -376,7 +374,7 @@ class MedicalRecordCard extends StatelessWidget {
               child: Text(
                 record.diagnosisResult,
                 style: const TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   color: Color(0xFF4299E1),
                   overflow: TextOverflow.ellipsis,
                 ),
