@@ -1,18 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
-import '../config.dart';
 import '../request.dart';
 import '../widgets.dart';
 
 class StatusRecord {
   final String id;
-  final int heartRate;
-  final int tremorFrequency;
+  final num heartRate;
+  final num tremorFrequency;
   final DateTime datetime;
-  final double sleepDuration;
-  final int pulse;
+  final num sleepDuration;
+  final num pulse;
   final String sleepQuality;
 
   StatusRecord({
@@ -40,12 +40,12 @@ class StatusRecord {
   factory StatusRecord.fromJson(Map<String, dynamic> json) {
     return StatusRecord(
       id: json["id"].toString(),
-      heartRate: json["heart_rate"] as int,
-      tremorFrequency: json["tremor_frequency"] as int,
-      datetime: json["datetime"] as String,
-      sleepDuration: (json["sleep_duration"] as num?)?.toDouble() ?? 0.0,
-      pulse: json["pulse"] as int,
-      sleepQuality: json["sleep_quality"] as String,
+      heartRate: json["heartRate"],
+      tremorFrequency: json["tremorFrequency"],
+      datetime: json["date"] as String,
+      sleepDuration: (json["sleepHours"] as num?)?.toDouble() ?? 0.0,
+      pulse: (json["pulse"] as num).toInt(),
+      sleepQuality: json["sleepQuality"] as String,
     );
   }
 }
@@ -64,31 +64,24 @@ class _DataPageState extends State<DataPage> {
     // 1. 先判断页面是否已销毁，避免异步请求完成后上下文失效（真机上更易出现）
     if (!mounted) return;
 
-    try {
-      var res = await HttpUtil().get("/health/weekdata");
-      print("$res"); // 确认数据正常
+    var res = await HttpUtil().get("/health/weekdata");
 
-      // 2. 先判断 res 和 data 不为空，避免空指针导致后续逻辑不执行（真机上容错性更低）
-      if (res == null || res["data"] == null || !(res["data"] is List)) {
-        print("数据格式异常：res.data 为空或不是列表");
-        return;
-      }
+    // 2. 先判断 res 和 data 不为空，避免空指针导致后续逻辑不执行（真机上容错性更低）
+    if (res == null || res["data"] == null || res["data"] is! List) {
+      return;
+    }
 
-      // 3. 数据解析（保持不变）
-      List<StatusRecord> newData = (res["data"] as List<dynamic>)
-          .map((record) => StatusRecord.fromJson(record))
-          .toList();
+    // 3. 数据解析（保持不变）
+    List<StatusRecord> newData = (res["data"] as List<dynamic>)
+        .map((record) => StatusRecord.fromJson(record))
+        .toList();
 
-      // 4. 确保在 setState 内部更新状态（原子性操作，避免真机异步调度差异）
-      if (mounted) {
-        // 再次判断上下文有效
-        setState(() {
-          _statusRecords = newData; // 仅在 setState 内部赋值，确保触发重建
-        });
-      }
-    } catch (e) {
-      // 替换 Logger 为 debugPrint，避免之前的流异常影响
-      debugPrint("发生错误: $e");
+    // 4. 确保在 setState 内部更新状态（原子性操作，避免真机异步调度差异）
+    if (mounted) {
+      // 再次判断上下文有效
+      setState(() {
+        _statusRecords = newData; // 仅在 setState 内部赋值，确保触发重建
+      });
     }
   }
 
@@ -110,7 +103,7 @@ class _DataPageState extends State<DataPage> {
 
   double _getWeekAvgHeartRate() {
     if (_statusRecords.isEmpty) return 0.0;
-    int val = 0;
+    num val = 0;
     for (var element in _statusRecords) {
       val += element.heartRate;
     }
@@ -137,13 +130,7 @@ class _DataPageState extends State<DataPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "数据",
-                  style: TextStyle(
-                    fontSize: GlobalConfig.titleSize,
-                    color: const Color(0xFF2D3748),
-                  ),
-                ),
+                Text("数据", style: ShadTheme.of(context).textTheme.h3),
                 const SizedBox(height: 15),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -189,28 +176,6 @@ class _DataPageState extends State<DataPage> {
                     ),
                   ],
                 ),
-
-                // Container(
-                //   width: double.infinity,
-                //   decoration: BoxDecoration(
-                //     color: Colors.white,
-                //     borderRadius: BorderRadius.circular(16),
-                //     boxShadow: [
-                //       BoxShadow(
-                //         color: Colors.grey.shade100,
-                //         blurRadius: 6,
-                //         offset: const Offset(0, 2),
-                //       ),
-                //     ],
-                //   ),
-                //   child: ListView(
-                //     shrinkWrap: true,
-                //     physics: const NeverScrollableScrollPhysics(),
-                //     children: _statusRecords
-                //         .map((record) => _Card.from(record))
-                //         .toList(),
-                //   ),
-                // ),
               ],
             ),
           ),
@@ -223,10 +188,10 @@ class _DataPageState extends State<DataPage> {
 class _Card extends StatelessWidget {
   final DateTime datetime;
   final String recordId;
-  final int heartRate;
-  final int pulse;
-  final double sleepDuration;
-  final int tremorFrequency;
+  final num heartRate;
+  final num pulse;
+  final num sleepDuration;
+  final num tremorFrequency;
 
   _Card({
     required this.recordId,
@@ -243,7 +208,7 @@ class _Card extends StatelessWidget {
       datetime: record.datetime,
       heartRate: record.heartRate,
       pulse: record.pulse,
-      sleepDuration: record.sleepDuration,
+      sleepDuration: record.sleepDuration.toDouble(),
       tremorFrequency: record.tremorFrequency,
     );
   }
@@ -251,7 +216,7 @@ class _Card extends StatelessWidget {
   String _formatData(dynamic data) {
     if (data is int && data == -1) return "未记录";
     if (data is double && data == -1) return "未记录";
-    if (data is double) return "${data.toStringAsFixed(1)} 小时";
+    if (data is double) return data.toStringAsFixed(1);
     if (data is int) {
       return "$data ${data == heartRate || data == pulse ? "次/分" : "次/小时"}";
     }
@@ -290,8 +255,7 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String formattedDatetime =
-        "${datetime.year}/${datetime.month.toString().padLeft(2, '0')}/${datetime.day.toString().padLeft(2, '0')} "
-        "${datetime.hour.toString().padLeft(2, '0')}:${datetime.minute.toString().padLeft(2, '0')}";
+        "${datetime.year}/${datetime.month.toString().padLeft(2, '0')}/${datetime.day.toString().padLeft(2, '0')} ";
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -318,7 +282,7 @@ class _Card extends StatelessWidget {
                 style: const TextStyle(fontSize: 13, color: Colors.black54),
               ),
               Text(
-                "记录ID: $recordId",
+                recordId,
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
             ],

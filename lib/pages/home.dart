@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
 import '../config.dart';
 import '../request.dart';
@@ -43,22 +44,20 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _getDashboardData() async {
-    try {
-      Map<String, dynamic>? res = await HttpUtil().get("/dashboard");
-      _heartRate = res?["data"]?["heart_rate"];
-      _pulse = res?["data"]?["pulse"];
-      _sleepHours = res?["data"]?["sleep_hours"];
-      _tremorFrequency = res?["data"]?["tremor_frequency"];
-      setState(() {});
-    } catch (e) {
-      print("发生错误: $e");
-    }
+    Map<String, dynamic>? res = await HttpUtil().get("/health");
+    debugPrint("$res");
+
+    _heartRate = res?["data"]?["heartRate"] ?? -1;
+    _pulse = res?["data"]?["pulse"] ?? -1;
+    _sleepHours = (res?["data"]?["sleepHours"] as num?)?.toInt() ?? -1;
+    _tremorFrequency = res?["data"]?["tremorFrequency"] ?? -1;
+    setState(() {});
   }
 
   (String, Color) _getTremorStatus(int value) {
-    if (value <= 2) return ("轻度", const Color(0xFF38A169));
-    if (value <= 4) return ("中度", const Color(0xFFED8936));
-    return ("重度", const Color(0xFFE53E3E));
+    if (value <= 7) return ("偏低", const Color(0xFFED8936));
+    if (value <= 12) return ("正常", const Color(0xFF38A169));
+    return ("偏高", const Color(0xFFE53E3E));
   }
 
   (String, Color) _getSleepStatus(int value) {
@@ -137,22 +136,18 @@ class _HomePageState extends State<HomePage> {
       ),
     ];
 
-    try {
-      Map<String, dynamic>? res = await HttpUtil().get("/recipes");
+    Map<String, dynamic>? res = await HttpUtil().get("/recipes");
 
-      if (res != null && res["code"] == 200) {
-        List<dynamic> recipeDataList = res["data"] ?? [];
-        cards.clear();
+    if (res != null && res["code"] == 200) {
+      List<dynamic> recipeDataList = res["data"] ?? [];
+      cards.clear();
 
-        for (var item in recipeDataList) {
-          String cardTitle = item["title"] ?? "未知餐食";
-          List<String> cardFoods = List<String>.from(item["foods"] ?? []);
+      for (var item in recipeDataList) {
+        String cardTitle = item["title"] ?? "未知餐食";
+        List<String> cardFoods = List<String>.from(item["foods"] ?? []);
 
-          cards.add(RecipeCard(title: cardTitle, foods: cardFoods));
-        }
+        cards.add(RecipeCard(title: cardTitle, foods: cardFoods));
       }
-    } catch (e) {
-      print("发生错误: $e");
     }
 
     _recipes = cards;
@@ -173,14 +168,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  "健康",
-                  style: TextStyle(
-                    fontSize: GlobalConfig.titleSize,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2D3748),
-                  ),
-                ),
+                child: Text("健康", style: ShadTheme.of(context).textTheme.h3),
               ),
               const SizedBox(height: 15),
               //* 首页海报

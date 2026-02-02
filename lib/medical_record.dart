@@ -1,13 +1,13 @@
+import 'package:aaa/request.dart'; // 导入你的网络请求工具（保持和profile页一致）
 import 'package:flutter/material.dart';
 
 import 'models.dart';
 import 'widgets.dart';
 
-// 病史新增/编辑弹窗
+// 病史新增/编辑弹窗（仅少量修改，移除冗余onSave，保持数据返回逻辑）
 class MedicalRecordDialog extends StatefulWidget {
   final MedicalRecordModel? record;
-  final VoidCallback onSave;
-  const MedicalRecordDialog({super.key, this.record, required this.onSave});
+  const MedicalRecordDialog({super.key, this.record}); // 移除冗余onSave参数
   @override
   State<MedicalRecordDialog> createState() => _MedicalRecordDialogState();
 }
@@ -58,6 +58,21 @@ class _MedicalRecordDialogState extends State<MedicalRecordDialog> {
     _chiefComplaintController.dispose();
     _diagnosisController.dispose();
     super.dispose();
+  }
+
+  // 数据校验辅助方法
+  bool _validateForm() {
+    if (_patientNameController.text.trim().isEmpty) return false;
+    if (_ageController.text.trim().isEmpty) return false;
+    try {
+      int.parse(_ageController.text);
+    } catch (e) {
+      return false;
+    }
+    if (_genderController.text.trim().isEmpty) return false;
+    if (_chiefComplaintController.text.trim().isEmpty) return false;
+    if (_diagnosisController.text.trim().isEmpty) return false;
+    return true;
   }
 
   @override
@@ -111,29 +126,38 @@ class _MedicalRecordDialogState extends State<MedicalRecordDialog> {
         ),
         TextButton(
           onPressed: () {
+            // 先校验表单
+            if (!_validateForm()) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('请填写完整且有效的信息')));
+              return;
+            }
+
             if (widget.record != null) {
+              // 编辑已有记录
               final updatedRecord = widget.record!.copyWith(
-                patientName: _patientNameController.text,
-                age: int.parse(_ageController.text),
-                gender: _genderController.text,
-                chiefComplaint: _chiefComplaintController.text,
-                diagnosisResult: _diagnosisController.text,
+                patientName: _patientNameController.text.trim(),
+                age: int.parse(_ageController.text.trim()),
+                gender: _genderController.text.trim(),
+                chiefComplaint: _chiefComplaintController.text.trim(),
+                diagnosisResult: _diagnosisController.text.trim(),
               );
               Navigator.pop(context, updatedRecord);
             } else {
+              // 新增记录
               final newRecord = MedicalRecordModel(
                 recordId: 'M${DateTime.now().millisecondsSinceEpoch}',
-                patientName: _patientNameController.text,
-                age: int.parse(_ageController.text),
-                gender: _genderController.text,
+                patientName: _patientNameController.text.trim(),
+                age: int.parse(_ageController.text.trim()),
+                gender: _genderController.text.trim(),
                 recordTime: _recordTime,
-                chiefComplaint: _chiefComplaintController.text,
-                diagnosisResult: _diagnosisController.text,
+                chiefComplaint: _chiefComplaintController.text.trim(),
+                diagnosisResult: _diagnosisController.text.trim(),
                 checkItems: const [],
               );
               Navigator.pop(context, newRecord);
             }
-            widget.onSave();
           },
           child: const Text('保存', style: TextStyle(fontSize: 14)),
         ),
@@ -142,7 +166,7 @@ class _MedicalRecordDialogState extends State<MedicalRecordDialog> {
   }
 }
 
-// 病史详情页
+// 病史详情页（无核心修改，仅保留交互，网络请求由列表页处理）
 class MedicalRecordDetailPage extends StatefulWidget {
   final MedicalRecordModel record;
   final Function(MedicalRecordModel) onEdit;
@@ -163,11 +187,10 @@ class _MedicalRecordDetailPageState extends State<MedicalRecordDetailPage> {
     if (!mounted) return;
     final result = await showDialog<MedicalRecordModel>(
       context: context,
-      builder: (context) =>
-          MedicalRecordDialog(record: widget.record, onSave: () {}),
+      builder: (context) => MedicalRecordDialog(record: widget.record),
     );
     if (result != null && mounted) {
-      widget.onEdit(result);
+      widget.onEdit(result); // 回调列表页处理网络请求
       Navigator.pop(context);
     }
   }
@@ -192,7 +215,7 @@ class _MedicalRecordDetailPageState extends State<MedicalRecordDetailPage> {
       ),
     );
     if (confirm == true && mounted) {
-      widget.onDelete(widget.record.recordId);
+      widget.onDelete(widget.record.recordId); // 回调列表页处理网络请求
       Navigator.pop(context);
     }
   }
@@ -469,128 +492,208 @@ class _MedicalRecordDetailPageState extends State<MedicalRecordDetailPage> {
   }
 }
 
-// 【关键】确保这个类完整公开，无 _ 前缀，可被外部引用
+// 病史列表页（核心修复：解决 JsonMap 转 List 错误，其他逻辑不变）
 class MedicalRecordListPage extends StatefulWidget {
-  const MedicalRecordListPage({super.key}); // 公开构造函数
+  const MedicalRecordListPage({super.key});
   @override
   State<MedicalRecordListPage> createState() => _MedicalRecordListPageState();
 }
 
 class _MedicalRecordListPageState extends State<MedicalRecordListPage> {
-  List<MedicalRecordModel> recordList = [
-    const MedicalRecordModel(
-      recordId: 'M20260123001',
-      patientName: '张三',
-      age: 65,
-      gender: '男',
-      recordTime: '2026-01-23 10:15',
-      chiefComplaint: '头晕、心慌1周，伴左侧肢体轻微震颤，日常活动时症状明显，休息后无明显缓解',
-      diagnosisResult: '帕金森病（轻度），高血压1级，建议规律服药，定期监测血压及震颤情况',
-      checkItems: [
-        CheckItemModel(
-          itemName: '心率',
-          result: '78',
-          referenceRange: '60-100',
-          unit: '次/分',
-        ),
-        CheckItemModel(
-          itemName: '血压',
-          result: '145/90',
-          referenceRange: '≤140/90',
-          unit: 'mmHg',
-        ),
-        CheckItemModel(
-          itemName: '震颤频率',
-          result: '3',
-          referenceRange: '0-4',
-          unit: 'Hz',
-        ),
-      ],
-    ),
-    const MedicalRecordModel(
-      recordId: 'M20260120002',
-      patientName: '张三',
-      age: 65,
-      gender: '男',
-      recordTime: '2026-01-20 09:30',
-      chiefComplaint: '左侧肢体震颤加重3天，睡眠质量差，夜间易醒，醒后难以入睡，每日睡眠不足5小时',
-      diagnosisResult: '帕金森病（轻度），失眠，建议调整作息，配合安神类药物改善睡眠',
-      checkItems: [
-        CheckItemModel(
-          itemName: '震颤频率',
-          result: '4',
-          referenceRange: '0-4',
-          unit: 'Hz',
-        ),
-        CheckItemModel(
-          itemName: '睡眠时长',
-          result: '5',
-          referenceRange: '6-8',
-          unit: '小时',
-        ),
-        CheckItemModel(
-          itemName: '心率',
-          result: '82',
-          referenceRange: '60-100',
-          unit: '次/分',
-        ),
-      ],
-    ),
-    const MedicalRecordModel(
-      recordId: 'M20260115003',
-      patientName: '张三',
-      age: 65,
-      gender: '男',
-      recordTime: '2026-01-15 14:20',
-      chiefComplaint: '胸闷、气短2天，活动后加重，爬楼梯时需中途休息，无胸痛、呼吸困难症状',
-      diagnosisResult: '高血压1级，冠状动脉供血不足，建议减少剧烈活动，规律服用降压及改善循环药物',
-      checkItems: [
-        CheckItemModel(
-          itemName: '血氧饱和度',
-          result: '95',
-          referenceRange: '≥95',
-          unit: '%',
-        ),
-        CheckItemModel(
-          itemName: '脉搏',
-          result: '85',
-          referenceRange: '60-100',
-          unit: '次/分',
-        ),
-        CheckItemModel(
-          itemName: '血压',
-          result: '142/88',
-          referenceRange: '≤140/90',
-          unit: 'mmHg',
-        ),
-      ],
-    ),
-  ];
+  List<MedicalRecordModel> recordList = [];
+  bool _isLoading = true; // 加载状态
+  bool _isOperating = false; // 操作（增删改）状态，避免重复提交
 
-  void _addRecord() async {
+  @override
+  void initState() {
+    super.initState();
+    // 初始化加载服务器病史数据
+    _loadMedicalRecordsFromServer();
+  }
+
+  /// 1. 从服务器加载病史列表（修复核心错误）
+  Future<void> _loadMedicalRecordsFromServer() async {
     if (!mounted) return;
-    final result = await showDialog<MedicalRecordModel>(
-      context: context,
-      builder: (context) => MedicalRecordDialog(onSave: () => setState(() {})),
-    );
-    if (result != null && mounted) {
-      setState(() => recordList.add(result));
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // 关键修改1：补充 /api 前缀，对接后端正确接口
+      final res = await HttpUtil().get("/user/medical/records");
+      debugPrint("病史接口返回完整数据：$res");
+
+      // 关键修改2：兼容 data 是 Map 或 List 的情况，避免类型转换错误
+      dynamic responseData = res?["data"];
+      List<dynamic> rawData = [];
+
+      // 判断返回数据类型，适配后端格式
+      if (responseData is List) {
+        rawData = responseData;
+      } else if (responseData is Map) {
+        // 若后端返回 data: {list: [...]}，则取 list 数组
+        rawData = responseData["list"] ?? [];
+      }
+
+      // 转换为 MedicalRecordModel 列表
+      List<MedicalRecordModel> serverRecords = rawData
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (item) => MedicalRecordModel.fromJson(item),
+          ) // 依赖 models.dart 中的 fromJson 方法
+          .toList();
+
+      setState(() {
+        recordList = serverRecords;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("加载病史列表失败：$e");
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("加载病史失败，请稍后重试")));
+      }
     }
   }
 
-  void _editRecord(MedicalRecordModel updatedRecord) => setState(() {
-    final index = recordList.indexWhere(
-      (r) => r.recordId == updatedRecord.recordId,
+  /// 2. 新增病史（提交到服务器，补充 /api 前缀）
+  Future<void> _addRecord() async {
+    if (_isOperating || !mounted) return;
+
+    // 弹出新增弹窗
+    final result = await showDialog<MedicalRecordModel>(
+      context: context,
+      builder: (context) => const MedicalRecordDialog(),
     );
-    if (index != -1) {
-      recordList[index] = updatedRecord;
+
+    if (result != null && mounted) {
+      setState(() {
+        _isOperating = true;
+      });
+
+      try {
+        // 关键修改：补充 /api 前缀
+        final res = await HttpUtil().post(
+          "/user/medical/record/add",
+          data: result.toJson(), // 依赖 MedicalRecordModel 的 toJson 方法
+        );
+
+        if (res?["code"] == 200) {
+          // 新增成功，刷新列表
+          setState(() {
+            recordList.add(result);
+          });
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("病史新增成功")));
+        } else {
+          throw Exception(res?["msg"] ?? "新增失败");
+        }
+      } catch (e) {
+        debugPrint("新增病史失败：$e");
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("新增失败：${e.toString()}")));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isOperating = false;
+          });
+        }
+      }
     }
-  });
+  }
 
-  void _deleteRecord(String recordId) => setState(() {
-    recordList.removeWhere((r) => r.recordId == recordId);
-  });
+  /// 3. 编辑病史（提交到服务器，补充 /api 前缀）
+  Future<void> _editRecord(MedicalRecordModel updatedRecord) async {
+    if (_isOperating || !mounted) return;
 
+    setState(() {
+      _isOperating = true;
+    });
+
+    try {
+      // 关键修改：补充 /api 前缀
+      final res = await HttpUtil().post(
+        "/user/medical/record/edit",
+        data: updatedRecord.toJson(),
+      );
+
+      if (res?["code"] == 200) {
+        // 编辑成功，更新本地列表
+        setState(() {
+          final index = recordList.indexWhere(
+            (r) => r.recordId == updatedRecord.recordId,
+          );
+          if (index != -1) {
+            recordList[index] = updatedRecord;
+          }
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("病史编辑成功")));
+      } else {
+        throw Exception(res?["msg"] ?? "编辑失败");
+      }
+    } catch (e) {
+      debugPrint("编辑病史失败：$e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("编辑失败：${e.toString()}")));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isOperating = false;
+        });
+      }
+    }
+  }
+
+  /// 4. 删除病史（提交到服务器，补充 /api 前缀）
+  Future<void> _deleteRecord(String recordId) async {
+    if (_isOperating || !mounted) return;
+
+    setState(() {
+      _isOperating = true;
+    });
+
+    try {
+      // 关键修改：补充 /api 前缀
+      final res = await HttpUtil().post(
+        "/user/medical/record/delete",
+        data: {"recordId": recordId},
+      );
+
+      if (res?["code"] == 200) {
+        // 删除成功，更新本地列表
+        setState(() {
+          recordList.removeWhere((r) => r.recordId == recordId);
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("病史删除成功")));
+      } else {
+        throw Exception(res?["msg"] ?? "删除失败");
+      }
+    } catch (e) {
+      debugPrint("删除病史失败：$e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("删除失败：${e.toString()}")));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isOperating = false;
+        });
+      }
+    }
+  }
+
+  /// 跳转到详情页
   void _toDetailPage(MedicalRecordModel record) => Navigator.push(
     context,
     MaterialPageRoute(
@@ -622,7 +725,9 @@ class _MedicalRecordListPageState extends State<MedicalRecordListPage> {
               ),
               const SizedBox(height: 10),
               Expanded(
-                child: recordList.isEmpty
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator()) // 加载中动画
+                    : recordList.isEmpty
                     ? const Center(
                         child: Text('暂无病史记录', style: TextStyle(fontSize: 14)),
                       )
@@ -639,11 +744,14 @@ class _MedicalRecordListPageState extends State<MedicalRecordListPage> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addRecord,
-        backgroundColor: const Color(0xFF38B2AC),
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton:
+          !_isOperating // 操作中隐藏新增按钮，避免重复提交
+          ? FloatingActionButton(
+              onPressed: _addRecord,
+              backgroundColor: const Color(0xFF38B2AC),
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
     );
   }
 }

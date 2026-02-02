@@ -1,130 +1,210 @@
 import 'dart:convert';
 
+import 'package:aaa/utils/storage.dart';
 import 'package:dio/dio.dart';
 import 'package:logging/logging.dart';
 
 class HttpUtil {
   final Logger _logger = Logger('HttpUtil');
-  final Dio _dio = Dio();
+  late final Dio _dio;
   String? savedPhone;
   String? savedPassword;
 
-  // 初始化Dio配置
   HttpUtil() {
-    _dio.options = BaseOptions(
-      // baseUrl: "http://localhost:8888/api",
-      baseUrl: "http://noahmiller.icu:8080/api",
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-      headers: {
-        "Content-Type": "application/json;charset=utf-8",
-        "Accept": "application/json",
-      },
-      responseType: ResponseType.json,
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: "http://noahmiller.icu:8080/api",
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+        headers: {
+          "Content-Type": "application/json;charset=utf-8",
+          "Accept": "application/json",
+        },
+        // 关键：让 400~499 也能拿到 response body，而不是直接抛异常
+        validateStatus: (status) => status != null && status < 500,
+        responseType: ResponseType.json,
+      ),
+    );
+
+    // 拦截器：强制打印所有细节
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          print(
+            '╔══════════════════════════════════════ REQUEST START ══════════════════════════════════════',
+          );
+          print('║ URL: ${options.uri}');
+          print('║ Method: ${options.method}');
+          print('║ Token: ${options.headers['Authorization'] ?? '无 token'}');
+          print('║ All Headers: ${options.headers}');
+          if (options.data != null) {
+            try {
+              print('║ Body: ${jsonEncode(options.data)}');
+            } catch (_) {
+              print('║ Body (raw): $options.data');
+            }
+          }
+          if (options.queryParameters.isNotEmpty) {
+            print('║ Query Params: ${options.queryParameters}');
+          }
+          print(
+            '╚══════════════════════════════════════ REQUEST END ════════════════════════════════════════',
+          );
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          print(
+            '╔══════════════════════════════════════ RESPONSE SUCCESS ══════════════════════════════════════',
+          );
+          print('║ Status: ${response.statusCode} ${response.statusMessage}');
+          print('║ Real URL: ${response.realUri}');
+          try {
+            print('║ Response Body: ${jsonEncode(response.data)}');
+          } catch (_) {
+            print('║ Response Body (raw): $response.data');
+          }
+          print(
+            '╚══════════════════════════════════════ RESPONSE END ════════════════════════════════════════',
+          );
+          return handler.next(response);
+        },
+        onError: (DioException e, handler) {
+          print(
+            '╔══════════════════════════════════════ !!! ERROR !!! ══════════════════════════════════════',
+          );
+          print('║ URL: ${e.requestOptions.uri}');
+          print('║ Type: ${e.type}');
+          print('║ Message: ${e.message}');
+          print(
+            '║ Token sent: ${e.requestOptions.headers['Authorization'] ?? '无'}',
+          );
+
+          if (e.response != null) {
+            print('║ Status: ${e.response?.statusCode}');
+            print('║ Status Message: ${e.response?.statusMessage}');
+            try {
+              print('║ Error Response Body: ${jsonEncode(e.response?.data)}');
+            } catch (_) {
+              print('║ Error Response Body (raw): ${e.response?.data}');
+            }
+            print('║ Headers received: ${e.response?.headers}');
+          } else {
+            print('║ No response received (可能是网络断开/超时/取消)');
+          }
+
+          print('║ Stack: ${e.stackTrace}');
+          print(
+            '╚══════════════════════════════════════ ERROR END ════════════════════════════════════════',
+          );
+          return handler.next(e);
+        },
+      ),
     );
   }
 
-  // 存储账号密码
   void saveUserInfo(String phone, String password) {
     savedPhone = phone;
     savedPassword = password;
   }
 
-  // 清空账号密码
   void clearUserInfo() {
     savedPhone = null;
     savedPassword = null;
   }
 
-  // GET请求
   Future<Map<String, dynamic>?> get(
     String path, {
     Map<String, dynamic>? params,
   }) async {
+    final token = await LocalStorage.get('_token');
+    print('【TOKEN CHECK】 当前使用的 token: $token  (长度: ${token.length})');
+
     try {
-      final response = await _dio.get(path, queryParameters: params);
-
-      final Map<String, dynamic> result = response.data is Map
-          ? response.data as Map<String, dynamic>
-          : json.decode(response.data.toString()) as Map<String, dynamic>;
-
-      return {
-        "code": result["code"] ?? -1,
-        "message": result["message"] ?? "请求成功",
-        "data": result["data"],
-      };
+      final response = await _dio.get(
+        path,
+        queryParameters: params,
+        options: Options(
+          headers: {if (token.isNotEmpty) "Authorization": "Bearer $token"},
+        ),
+      );
+      return _parseAndReturn(response);
     } on DioException catch (e) {
-      _logDioError(e);
-      return _handleDioError(e);
-    } catch (e) {
-      _logUnknownError(e);
-      return {"code": -999, "message": "未知异常，请稍后重试", "data": null};
+      return _handleAndReturnError(e);
+    } catch (e, s) {
+      print('【未知异常】 $e\n$s');
+      return {"code": -999, "message": "未知异常: $e", "data": null};
     }
   }
 
-  // POST请求
   Future<Map<String, dynamic>?> post(
     String path, {
     Map<String, dynamic>? data,
   }) async {
+    final token = await LocalStorage.get('_token');
+    print('【TOKEN CHECK】 当前使用的 token: $token  (长度: ${token.length})');
+
     try {
-      final response = await _dio.post(path, data: data);
-
-      final Map<String, dynamic> result = response.data is Map
-          ? response.data as Map<String, dynamic>
-          : json.decode(response.data.toString()) as Map<String, dynamic>;
-
-      return {
-        "code": result["code"] ?? -1,
-        "message": result["message"] ?? "请求成功",
-        "data": result["data"],
-      };
+      final response = await _dio.post(
+        path,
+        data: data,
+        options: Options(
+          headers: {if (token.isNotEmpty) "Authorization": "Bearer $token"},
+        ),
+      );
+      return _parseAndReturn(response);
     } on DioException catch (e) {
-      _logDioError(e);
-      return _handleDioError(e);
-    } catch (e) {
-      _logUnknownError(e);
-      return {"code": -999, "message": "未知异常，请稍后重试", "data": null};
+      return _handleAndReturnError(e);
+    } catch (e, s) {
+      print('【未知异常】 $e\n$s');
+      return {"code": -999, "message": "未知异常: $e", "data": null};
     }
   }
 
-  // 处理Dio错误
-  Map<String, dynamic> _handleDioError(DioException e) {
-    String message = "网络异常，请检查网络";
+  Map<String, dynamic> _parseAndReturn(Response response) {
+    dynamic raw = response.data;
+    Map<String, dynamic> result = {};
 
-    switch (e.type) {
-      case DioExceptionType.connectionTimeout:
-        message = "网络连接超时，请稍后重试";
-        break;
-      case DioExceptionType.receiveTimeout:
-        message = "数据接收超时，请稍后重试";
-        break;
-      case DioExceptionType.badResponse:
-        message = "接口返回错误（${e.response?.statusCode}）";
-        break;
-      case DioExceptionType.cancel:
-        message = "请求已取消";
-        break;
-      case DioExceptionType.unknown:
-        message = "网络未连接，请检查网络设置";
-        break;
-      default:
-        message = "未知错误，请稍后重试";
-        break;
+    if (raw is Map<String, dynamic>) {
+      result = raw;
+    } else if (raw is String) {
+      try {
+        result = json.decode(raw);
+      } catch (_) {
+        result = {"raw_string": raw};
+      }
+    } else {
+      result = {"raw": raw.toString()};
     }
 
-    return {"code": -1, "message": message, "data": null};
+    return {
+      "code": result["code"] ?? (response.statusCode == 200 ? 0 : -1),
+      "message": result["message"] ?? "操作成功",
+      "data": result["data"] ?? result,
+    };
   }
 
-  // 打印Dio错误日志
-  void _logDioError(DioException e) {
-    _logger.severe(
-      "URL: ${e.requestOptions.baseUrl}${e.requestOptions.path} | Message: ${e.message}",
-    );
-  }
+  Map<String, dynamic> _handleAndReturnError(DioException e) {
+    String msg = "网络错误";
+    dynamic detail;
 
-  // 打印未知错误日志
-  void _logUnknownError(Object e) {
-    _logger.severe("Unknown Error: $e");
+    if (e.response?.data != null) {
+      try {
+        final errBody = jsonEncode(e.response!.data);
+        print('【后端返回的完整错误体】 $errBody');
+        detail = e.response!.data;
+        if (e.response!.statusCode == 422) {
+          msg = "参数验证失败 (422)";
+          if (detail is Map && detail['detail'] != null) {
+            msg += " → ${jsonEncode(detail['detail'])}";
+          }
+        } else if (e.response!.statusCode == 401) {
+          msg = "登录失效，请重新登录 (401)";
+        }
+      } catch (_) {
+        msg = "服务器返回格式异常";
+      }
+    }
+
+    return {"code": -1, "message": msg, "data": null, "errorDetail": detail};
   }
 }

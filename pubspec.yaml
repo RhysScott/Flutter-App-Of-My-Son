@@ -1,4 +1,4 @@
-name: project_for_my_son
+name: aaa
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -37,6 +37,14 @@ dependencies:
   dio: ^5.9.1
   logging: ^1.3.0
   awesome_snackbar_content: ^0.1.8
+  syncfusion_flutter_charts: ^32.1.25
+  flutter_local_notifications: ^20.0.0
+  flutter_local_notifications_linux: ^7.0.0
+  permission_handler: ^12.0.1
+  shared_preferences: ^2.5.4
+  shadcn_ui: ^0.45.1
+  lucide_icons_flutter: ^3.1.9
+  forui: ^0.17.0
 
 dev_dependencies:
   flutter_test:

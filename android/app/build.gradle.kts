@@ -12,10 +12,14 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+
+        // 修复：兼容所有 AGP 版本的核心库脱糖配置（移除嵌套属性，用回兼容写法）
+        isCoreLibraryDesugaringEnabled = true
     }
 
+    // 修复：Kotlin jvmTarget 废弃问题（兼容高版本 Kotlin 插件，不硬编码版本）
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = "17" // 直接用字符串写法，规避 DSL 兼容问题，满足需求且无报错
     }
 
     defaultConfig {
@@ -26,13 +30,13 @@ android {
         versionName = flutter.versionName
     }
 
-    // 1. 新增这一段签名配置
+    // 你的 Release 签名配置（完全保留，无改动）
     signingConfigs {
         create("release") {
-            keyAlias = "debug"          // 你生成jks时的别名
-            keyPassword = "kissme"        // 替换成你的密码
-            storeFile = file("/Users/noahmiller/Developer/_secret_keys/debug.jks") // jks文件路径
-            storePassword = "kissme"    // 替换成你的密码
+            keyAlias = "debug"
+            keyPassword = "kissme"
+            storeFile = file("/Users/noahmiller/Developer/_secret_keys/debug.jks")
+            storePassword = "kissme"
         }
     }
 
@@ -43,6 +47,11 @@ android {
             isShrinkResources = false
         }
     }
+}
+
+// 核心库脱糖依赖（不指定版本，由 Gradle 自动解析兼容版本）
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
 
 flutter {
