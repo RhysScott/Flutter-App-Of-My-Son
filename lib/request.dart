@@ -13,7 +13,8 @@ class HttpUtil {
   HttpUtil() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: "http://noahmiller.icu:8080/api",
+        baseUrl: "http://noahmiller.icu:8080/api", // 这里可以根据需要调整 URL
+        // baseUrl: "http://localhost:8080/api", // 这里可以根据需要调整 URL
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 15),
         headers: {
@@ -61,7 +62,7 @@ class HttpUtil {
           try {
             print('║ Response Body: ${jsonEncode(response.data)}');
           } catch (_) {
-            print('║ Response Body (raw): $response.data');
+            print('║ Response Body (raw): ${response.data}');
           }
           print(
             '╚══════════════════════════════════════ RESPONSE END ════════════════════════════════════════',
@@ -116,16 +117,11 @@ class HttpUtil {
     String path, {
     Map<String, dynamic>? params,
   }) async {
-    final token = await LocalStorage.get('_token');
-    print('【TOKEN CHECK】 当前使用的 token: $token  (长度: ${token.length})');
-
+    final uid = await LocalStorage.get('_user_id');
     try {
       final response = await _dio.get(
-        path,
+        path + "?user_id=$uid",
         queryParameters: params,
-        options: Options(
-          headers: {if (token.isNotEmpty) "Authorization": "Bearer $token"},
-        ),
       );
       return _parseAndReturn(response);
     } on DioException catch (e) {
@@ -140,17 +136,10 @@ class HttpUtil {
     String path, {
     Map<String, dynamic>? data,
   }) async {
-    final token = await LocalStorage.get('_token');
-    print('【TOKEN CHECK】 当前使用的 token: $token  (长度: ${token.length})');
+    final uid = await LocalStorage.get('_user_id');
 
     try {
-      final response = await _dio.post(
-        path,
-        data: data,
-        options: Options(
-          headers: {if (token.isNotEmpty) "Authorization": "Bearer $token"},
-        ),
-      );
+      final response = await _dio.post(path + "?user_id=$uid", data: data);
       return _parseAndReturn(response);
     } on DioException catch (e) {
       return _handleAndReturnError(e);

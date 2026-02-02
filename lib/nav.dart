@@ -1,5 +1,4 @@
 import 'package:aaa/auth.dart';
-import 'package:aaa/pages/white.dart';
 import 'package:aaa/utils/storage.dart';
 import 'package:flutter/material.dart';
 
@@ -28,7 +27,6 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
     SleepDataPage(), // 2 - 睡眠
     MedicalRecordListPage(), // 3 - 病史
     ProfilePage(), // 4 - 我的
-    WhitePage(),
   ];
 
   // 导航栏item配置：和页面列表索引一一对应
@@ -41,11 +39,10 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
     ),
     BottomNavigationBarItem(icon: Icon(Icons.archive, size: 24), label: '病史'),
     BottomNavigationBarItem(icon: Icon(Icons.person, size: 24), label: '我的'),
-    BottomNavigationBarItem(icon: Icon(Icons.person, size: 24), label: '空白'),
   ];
 
   void _onTabTapped(int index) async {
-    var token = await LocalStorage.get("_token");
+    var token = await LocalStorage.get("_user_id");
     if (!mounted) return;
     if (token.isEmpty) {
       Navigator.pushAndRemoveUntil(

@@ -1,9 +1,11 @@
 // lib/main.dart
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:aaa/auth.dart';
 import 'package:aaa/utils/storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -13,25 +15,29 @@ import 'utils/snack.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-Future<void> _requestStoragePermission() async {
-  // 1. 指定要申请的权限（存储权限）
-  final Permission storagePerm = Permission.storage;
-
-  // 2. 发起申请并获取结果（一行代码完成申请）
-  final PermissionStatus status = await storagePerm.request();
-
-  // 3. 简单判断结果并反馈
-  String tip;
-  if (status == PermissionStatus.granted) {
-    tip = "存储权限申请成功！";
-  } else {
-    tip = "存储权限申请失败！";
+Future<void> requestMediaPermissionsIfNeeded() async {
+  // Web / Desktop：直接返回
+  if (kIsWeb || Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+    return;
   }
 
-  // 4. 弹出提示（无需上下文复杂处理，简化版）
-  ScaffoldMessenger.of(
-    navigatorKey.currentContext!,
-  ).showSnackBar(SnackBar(content: Text(tip)));
+  if (!Platform.isAndroid) return;
+
+  // Android 13+
+  final photos = await Permission.photos.request();
+  final videos = await Permission.videos.request();
+
+  final context = navigatorKey.currentContext;
+  if (context == null) return;
+
+  String tip;
+  if (photos.isGranted && videos.isGranted) {
+    tip = "媒体权限已授权";
+  } else {
+    tip = "媒体权限未完全授权";
+  }
+
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tip)));
 }
 
 void main() {
@@ -76,8 +82,8 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     Timer(const Duration(seconds: 2), () async {
-      var token = await LocalStorage.get("_token");
-      _requestStoragePermission();
+      var token = await LocalStorage.get("_user_id");
+      requestMediaPermissionsIfNeeded();
       if (mounted) {
         if (token.isEmpty) {
           Navigator.pushReplacement(

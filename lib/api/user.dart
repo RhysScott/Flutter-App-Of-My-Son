@@ -17,7 +17,7 @@ Future<Map<String, dynamic>> login(String phone, String password) async {
     return {"code": res?["code"] ?? 400, "msg": res?["msg"] ?? "登录失败"};
   }
 
-  LocalStorage.set("_token", data?["token"] ?? "");
+  LocalStorage.set("_user_id", data?["user"]?["user_id"].toString() ?? "");
   return {"code": 200, "msg": res?["message"] ?? "登录成功"};
 }
 
